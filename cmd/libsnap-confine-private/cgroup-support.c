@@ -70,6 +70,8 @@ void sc_cgroup_create_and_join(const char *parent, const char *name, pid_t pid) 
 }
 
 static const char *cgroup_dir = "/sys/fs/cgroup";
+static const char *devices_cgroup_dir = "/sys/fs/cgroup/devices";
+static const char *systemd_cgroup_dir = "/sys/fs/cgroup/systemd";
 
 // from statfs(2)
 #ifndef CGROUP2_SUPER_MAGIC
@@ -79,19 +81,35 @@ static const char *cgroup_dir = "/sys/fs/cgroup";
 // Detect if we are running in cgroup v2 unified mode (as opposed to
 // hybrid or legacy) The algorithm is described in
 // https://systemd.io/CGROUP_DELEGATION/
-bool sc_cgroup_is_v2(void) {
+enum sc_cgroup_feature_flags sc_cgroup_features(void) {
     struct statfs buf;
 
+    // Devices might have broken devices v2 cgroup behavior coming from
+    // old kernel versions (range starting from 3.18 to 4.4 on Ubuntu Touch 20.04)
+    // Hence check for existance of cgroupv1 area before cgroupv2 is actually checked.
+    // Do so without dying on the request.
+    if (statfs(devices_cgroup_dir, &buf) != 0) {
+        if (errno == ENOENT) {
+            return SC_CGROUP_OFF;
+        }
+    }
+    if (statfs(systemd_cgroup_dir, &buf) != 0) {
+        if (errno == ENOENT) {
+            return SC_CGROUP_OFF;
+        }
+    }
+
+    // Otherwise, if the regular cgroupv2 path is a valid mountpoint
+    // then check if it's the valid cgroup v2 filesystem.
     if (statfs(cgroup_dir, &buf) != 0) {
         if (errno == ENOENT) {
-            return false;
+            return SC_CGROUP_DEFAULT;
         }
-        die("cannot statfs %s", cgroup_dir);
     }
     if (buf.f_type == CGROUP2_SUPER_MAGIC) {
-        return true;
+        return SC_CGROUP_DEFAULT & SC_CGROUP_IS_V2;
     }
-    return false;
+    return SC_CGROUP_UNKNOWN;
 }
 
 static const size_t max_traversal_depth = 32;

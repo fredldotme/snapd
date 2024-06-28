@@ -50,6 +50,7 @@ static sc_cgroup_fds sc_cgroup_fds_new(void) {
 }
 
 struct sc_device_cgroup {
+    enum sc_cgroup_feature_flags flags;
     bool is_v2;
     char *security_tag;
     union {
@@ -73,14 +74,17 @@ static void sc_cleanup_cgroup_fds(sc_cgroup_fds *fds);
 static int _sc_cgroup_v1_init(sc_device_cgroup *self, int flags) {
     self->v1.fds = sc_cgroup_fds_new();
 
+    const bool is_v2 = (sc_cgroup_features() & SC_CGROUP_IS_V2) &&
+                       (sc_cgroup_features() & SC_CGROUP_DEVICES);
+    if (is_v2) {
+        return 0;
+    }
+
     /* are we creating the group or just using whatever there is? */
     const bool from_existing = (flags & SC_DEVICE_CGROUP_FROM_EXISTING) != 0;
     /* initialize to something sane */
     if (sc_udev_open_cgroup_v1(self->security_tag, flags, &self->v1.fds) < 0) {
-        if (from_existing) {
-            return -1;
-        }
-        die("cannot prepare cgroup v1 device hierarchy");
+        return -1;
     }
     /* Only deny devices if we are not using an existing group -
      * if we deny devices for an existing group that we just opened,
@@ -604,7 +608,13 @@ sc_device_cgroup *sc_device_cgroup_new(const char *security_tag, int flags) {
     if (self == NULL) {
         die("cannot allocate device cgroup wrapper");
     }
-    self->is_v2 = sc_cgroup_is_v2();
+
+    // is_v2 implies two things here:
+    // - It is a cgroup v2 mountpoint after all
+    // - treats "device" cgroups not as another required file-based subsystem
+    // - Distinguishes between V2 and lowered expectation of control
+    self->flags = sc_cgroup_features();
+    self->is_v2 = self->flags & SC_CGROUP_IS_V2;
     self->security_tag = sc_strdup(security_tag);
 
     int ret = 0;
@@ -640,6 +650,9 @@ void sc_device_cgroup_cleanup(sc_device_cgroup **self) {
 }
 
 int sc_device_cgroup_allow(sc_device_cgroup *self, int kind, int major, int minor) {
+    if (self == NULL) {
+        return 0;
+    }
     if (kind != S_IFCHR && kind != S_IFBLK) {
         die("unsupported device kind 0x%04x", kind);
     }
@@ -652,6 +665,9 @@ int sc_device_cgroup_allow(sc_device_cgroup *self, int kind, int major, int mino
 }
 
 int sc_device_cgroup_deny(sc_device_cgroup *self, int kind, int major, int minor) {
+    if (self == NULL) {
+        return 0;
+    }
     if (kind != S_IFCHR && kind != S_IFBLK) {
         die("unsupported device kind 0x%04x", kind);
     }
@@ -703,7 +719,8 @@ static int sc_udev_open_cgroup_v1(const char *security_tag, int flags, sc_cgroup
     int SC_CLEANUP(sc_cleanup_close) devices_fd = -1;
     devices_fd = openat(cgroup_fd, devices_relpath, O_PATH | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
     if (devices_fd < 0) {
-        die("cannot open %s/%s", cgroup_path, devices_relpath);
+        // die("cannot open %s/%s", cgroup_path, devices_relpath);
+        return -1;
     }
 
     const char *security_tag_relpath = security_tag;

@@ -849,7 +849,7 @@ static void enter_non_classic_execution_environment(sc_invocation *inv,
 	// but the freezer is associated with each group. The call chain when
 	// starting the snap application has already ensure that the process has
 	// been put in a dedicated group.
-	if (!sc_cgroup_is_v2()) {
+	if (!sc_cgroup_features() & SC_CGROUP_IS_V2) {
 		sc_cgroup_freezer_join(inv->snap_instance, getpid());
 	}
 

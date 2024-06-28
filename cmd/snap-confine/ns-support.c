@@ -986,7 +986,7 @@ bool sc_is_mount_ns_in_use(const char *snap_instance)
 	// freezer controller, however with cgroups v2, we must check for any groups
 	// tracking the snap
 	bool occupied = false;
-	if (sc_cgroup_is_v2()) {
+	if (sc_cgroup_features() & SC_CGROUP_IS_V2) {
 		// cgroup v2 must consult the tracking groups
 		occupied = sc_cgroup_v2_is_tracking_snap(snap_instance);
 	} else {

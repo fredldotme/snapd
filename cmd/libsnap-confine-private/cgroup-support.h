@@ -32,10 +32,21 @@
 void sc_cgroup_create_and_join(const char *parent, const char *name, pid_t pid);
 
 /**
- * sc_cgroup_is_v2() returns true if running on cgroups v2
+ * Feature flags for cgroup setup behavior
+ **/
+enum sc_cgroup_feature_flags {
+    SC_CGROUP_UNKNOWN = 0,
+    SC_CGROUP_OFF = (1 << 1),
+    SC_CGROUP_DEVICES = (1 << 2),
+    SC_CGROUP_IS_V2 = (1 << 3),
+    SC_CGROUP_DEFAULT = SC_CGROUP_DEVICES
+} sc_cgroup_feature_flags;
+
+/**
+ * sc_cgroup_features() returns cgroup enablement status, cgroups v2 setup logic
  *
  **/
-bool sc_cgroup_is_v2(void);
+enum sc_cgroup_feature_flags sc_cgroup_features(void);
 
 /**
  * sc_cgroup_is_tracking_snap checks whether any snap process other than the

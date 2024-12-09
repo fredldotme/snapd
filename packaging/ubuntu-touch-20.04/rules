@@ -17,7 +17,7 @@ export DH_GOLANG_EXCLUDES=tests
 # skip Go generate, all source code should have been committed
 export DH_GOLANG_GO_GENERATE=0
 
-export PATH:=${PATH}:${CURDIR}
+export PATH:=${PATH}:${CURDIR}:/usr/lib/go-1.18/bin
 # GOCACHE is needed by go-1.13+
 export GOCACHE:=/tmp/go-build
 
@@ -130,6 +130,10 @@ override_dh_clean:
 	$(MAKE) -C cmd distclean || true
 
 override_dh_auto_build:
+	# Get all missing dependencies
+	export PATH=/usr/lib/go-1.18/bin:${PATH}
+	go get ./... && ./get-deps.sh
+
 	# usually done via `go generate` but that is not supported on powerpc
 	GO_GENERATE_BUILDDIR=_build/src/$(DH_GOPKG) GO111MODULE=off GOPATH=$$(pwd)/_build ./mkversion.sh
 	# Build golang bits
@@ -167,18 +171,18 @@ ifneq ($(shell dpkg-architecture -qDEB_HOST_ARCH),powerpc)
 endif
 
 	# ensure snap-seccomp is build with a static libseccomp on Ubuntu
-ifeq ($(shell dpkg-vendor --query Vendor),Ubuntu)
+#ifeq ($(shell dpkg-vendor --query Vendor),Ubuntu)
 	# (static linking on powerpc with cgo is broken)
- ifneq ($(shell dpkg-architecture -qDEB_HOST_ARCH),powerpc)
-	sed -i "s|#cgo LDFLAGS:|#cgo LDFLAGS: /usr/lib/$(shell dpkg-architecture -qDEB_TARGET_MULTIARCH)/libseccomp.a|" _build/src/$(DH_GOPKG)/cmd/snap-seccomp/main.go
-	(cd _build/bin && GOPATH=$$(pwd)/.. CGO_LDFLAGS_ALLOW="/.*/libseccomp.a" go build -tags "$(TAGS)" $(GCCGOFLAGS) $(DH_GOPKG)/cmd/snap-seccomp)
+# ifneq ($(shell dpkg-architecture -qDEB_HOST_ARCH),powerpc)
+#	sed -i "s|#cgo LDFLAGS:|#cgo LDFLAGS: /usr/lib/$(shell dpkg-architecture -qDEB_TARGET_MULTIARCH)/libseccomp.a|" _build/src/$(DH_GOPKG)/cmd/snap-seccomp/main.go
+#	(cd _build/bin && GOPATH=$$(pwd)/.. CGO_LDFLAGS_ALLOW="/.*/libseccomp.a" go build -tags "$(TAGS)" $(GCCGOFLAGS) $(DH_GOPKG)/cmd/snap-seccomp)
 	# ensure that libseccomp is not dynamically linked
-	ldd _build/bin/snap-seccomp
-	test "$$(ldd _build/bin/snap-seccomp | grep libseccomp)" = ""
+#	ldd _build/bin/snap-seccomp
+#	test "$$(ldd _build/bin/snap-seccomp | grep libseccomp)" = ""
 	# revert again so that the subsequent tests work
-	sed -i "s|#cgo LDFLAGS: /usr/lib/$(shell dpkg-architecture -qDEB_TARGET_MULTIARCH)/libseccomp.a|#cgo LDFLAGS:|" _build/src/$(DH_GOPKG)/cmd/snap-seccomp/main.go
- endif
-endif
+#	sed -i "s|#cgo LDFLAGS: /usr/lib/$(shell dpkg-architecture -qDEB_TARGET_MULTIARCH)/libseccomp.a|#cgo LDFLAGS:|" _build/src/$(DH_GOPKG)/cmd/snap-seccomp/main.go
+# endif
+#endif
 
 	# Build C bits, sadly manually
 	cd cmd && ( autoreconf -i -f )
@@ -260,16 +264,21 @@ override_dh_install-arch:
 	$(MAKE) -C cmd install DESTDIR=$(CURDIR)/debian/tmp
 
 	# Rename the apparmor profile, see dh_apparmor call above for an explanation.
-	mv $(CURDIR)/debian/tmp/etc/apparmor.d/usr.lib.snapd.snap-confine $(CURDIR)/debian/tmp/etc/apparmor.d/usr.lib.snapd.snap-confine.real
+	mkdir -p $(CURDIR)/debian/tmp/etc/apparmor.d
+	mv $(CURDIR)/debian/tmp/usr/etc/apparmor.d/usr.lib.snapd.snap-confine $(CURDIR)/debian/tmp/etc/apparmor.d/usr.lib.snapd.snap-confine.real
 
 	# Ouside of core we don't need to install the following files:
-	rm $(CURDIR)/debian/snapd/$(SYSTEMD_UNITS_DESTDIR)/snapd.autoimport.service
-	rm $(CURDIR)/debian/snapd/$(SYSTEMD_UNITS_DESTDIR)/snapd.core-fixup.service
-	rm $(CURDIR)/debian/snapd/$(SYSTEMD_UNITS_DESTDIR)/snapd.failure.service
-	rm $(CURDIR)/debian/snapd/$(SYSTEMD_UNITS_DESTDIR)/snapd.snap-repair.service
-	rm $(CURDIR)/debian/snapd/$(SYSTEMD_UNITS_DESTDIR)/snapd.snap-repair.timer
-	rm $(CURDIR)/debian/snapd/$(SYSTEMD_UNITS_DESTDIR)/snapd.system-shutdown.service
+	#rm $(CURDIR)/debian/snapd/$(SYSTEMD_UNITS_DESTDIR)/snapd.autoimport.service
+	#rm $(CURDIR)/debian/snapd/$(SYSTEMD_UNITS_DESTDIR)/snapd.core-fixup.service
+	#rm $(CURDIR)/debian/snapd/$(SYSTEMD_UNITS_DESTDIR)/snapd.failure.service
+	#rm $(CURDIR)/debian/snapd/$(SYSTEMD_UNITS_DESTDIR)/snapd.snap-repair.service
+	#rm $(CURDIR)/debian/snapd/$(SYSTEMD_UNITS_DESTDIR)/snapd.snap-repair.timer
+	#rm $(CURDIR)/debian/snapd/$(SYSTEMD_UNITS_DESTDIR)/snapd.system-shutdown.service
 	rm $(CURDIR)/debian/snapd/usr/lib/snapd/snapd.run-from-snap
+
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/man
+	mkdir -p $(CURDIR)/debian/tmp/usr/lib/systemd/system-generators
+	mv $(CURDIR)/debian/tmp/lib/systemd/system-generators/snapd-generator $(CURDIR)/debian/tmp/usr/lib/systemd/system-generators/snapd-generator
 
 	dh_install
 

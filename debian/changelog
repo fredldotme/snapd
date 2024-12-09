@@ -1,4 +1,4 @@
-snapd (2.67-ubports0) focal; urgency=medium
+snapd (2.67-1) focal; urgency=medium
 
   ´[ Alfred Neumayer ]
   * Initial packaging for building for Ubuntu Touch

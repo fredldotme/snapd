@@ -1,11 +1,7 @@
 Source: snapd
 Section: devel
 Priority: optional
-Maintainer: Michael Hudson-Doyle <mwhudson@debian.org>
-Uploaders: Steve Langasek <vorlon@debian.org>,
-           Zygmunt Krynicki <me@zygoon.pl>,
-           Luke Faraone <lfaraone@debian.org>,
-           Michael Vogt <mvo@debian.org>
+Maintainer: Alfred Neumayer <alfred@ubports.com>
 Build-Depends: autoconf,
                autoconf-archive,
                automake,

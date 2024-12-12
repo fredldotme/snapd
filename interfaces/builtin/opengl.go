@@ -274,6 +274,10 @@ var openglConnectedPlugUDev = []string{
 
 	// Kernel Fusion Driver
 	`SUBSYSTEM=="kfd", KERNEL=="kfd"`,
+}
+
+// Set up hybris/Halium device access for GLES to work on Touch
+var openglHybrisConnectedPlugUDev = []string{
 	`KERNEL=="kgsl-3d0"`,
 	`KERNEL=="ion"`,
 	`KERNEL=="binder"`,
@@ -334,6 +338,10 @@ func (iface *openglInterface) MountConnectedPlug(spec *mount.Specification, plug
 }
 
 func init() {
+	connectedPlugUDev := openglConnectedPlugUDev
+	if release.OnTouch {
+		connectedPlugUDev = append(openglConnectedPlugUDev, openglHybrisConnectedPlugUDev...)
+	}
 	registerIface(&openglInterface{
 		commonInterface: commonInterface{
 			name:                 "opengl",
@@ -341,7 +349,7 @@ func init() {
 			implicitOnCore:       true,
 			implicitOnClassic:    true,
 			baseDeclarationSlots: openglBaseDeclarationSlots,
-			connectedPlugUDev:    openglConnectedPlugUDev,
+			connectedPlugUDev:    connectedPlugUDev,
 		},
 	})
 }

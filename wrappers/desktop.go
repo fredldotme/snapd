@@ -102,6 +102,17 @@ var isValidDesktopFileLine = regexp.MustCompile(strings.Join([]string{
 	// unity extension
 	"^X-Ayatana-Desktop-Shortcuts=",
 	"^TargetEnvironment=",
+	// lomiri aka continuation of unity8
+	"^X-Lomiri-Touch=",
+	"^X-Lomiri-Single-Instance=",
+	"^X-Lomiri-Splash-Image=",
+	"^X-Lomiri-Splash-Color=",
+	"^X-Lomiri-Splash-Color-Footer=",
+	"^X-Lomiri-Splash-Color-Header=",
+	"^X-Lomiri-Splash-Show-Header=",
+	"^X-Lomiri-Splash-Title=",
+	"^X-Lomiri-Supported-Orientations=",
+	"^X-Lomiri-StageHint=",
 }, "|")).Match
 
 // detectAppAndRewriteExecLine parses snap app name from passed "Exec=" line and rewrites it
